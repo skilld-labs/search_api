@@ -49,7 +49,7 @@ class IndexFacetsForm extends EntityForm {
     /** @var \Drupal\Core\Entity\EntityManagerInterface $entity_manager */
     $entity_manager = $container->get('entity.manager');
     /** @var \Drupal\facetapi\Adapter\AdapterPluginManager $adapter_manager */
-    $adapter_manager = $container->get('plugin.manager.facet_api.adapter');
+    $adapter_manager = $container->get('plugin.manager.facetapi.adapter');
     return new static($entity_manager, $adapter_manager);
   }
 
@@ -78,6 +78,8 @@ class IndexFacetsForm extends EntityForm {
 
     // @todo inject realmManager to load realms. Look at the DataSourceDerivative
     $realm_name = $index->getServerId() . ':' . $index->id();
+
+    return array('#markup' => t('Bla.'));
 
     //$realm = $this->searcherManager->getInstance();
     /*$realm = facetapi_realm_load($realm_name);

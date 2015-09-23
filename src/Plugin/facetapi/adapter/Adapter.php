@@ -1,9 +1,9 @@
 <?php
 /**
- * Contains Drupal\search_api\Plugin\facet_api\adapter\Adapter
+ * Contains Drupal\search_api\Plugin\facetapi\adapter\Adapter
  */
 
-namespace Drupal\search_api\Plugin\facet_api\adapter;
+namespace Drupal\search_api\Plugin\facetapi\adapter;
 
 use Drupal\facetapi\Adapter\AdapterPluginBase;
 
@@ -11,7 +11,7 @@ use Drupal\facetapi\Adapter\AdapterPluginBase;
  * @FacetApiAdapter(
  *   id = "search_api",
  *   label = @Translation("Search API Adapter"),
- *   description = @Translation("Search API Class for facet_api")
+ *   description = @Translation("Search API Class for facetapi")
  * )
  */
 class Adapter extends AdapterPluginBase {

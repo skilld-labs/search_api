@@ -5,7 +5,7 @@
 
 namespace Drupal\search_api\Plugin\facet_api\adapter;
 
-use Drupal\facet_api\Adapter\AdapterPluginBase;
+use Drupal\facetapi\Adapter\AdapterPluginBase;
 
 /**
  * @FacetApiAdapter(

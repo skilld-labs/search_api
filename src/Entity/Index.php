@@ -41,6 +41,7 @@ use Drupal\views\Views;
  *       "edit" = "Drupal\search_api\Form\IndexForm",
  *       "fields" = "Drupal\search_api\Form\IndexFieldsForm",
  *       "processors" = "Drupal\search_api\Form\IndexProcessorsForm",
+ *       "facets" = "Drupal\search_api\Form\IndexFacetsForm",
  *       "delete" = "Drupal\search_api\Form\IndexDeleteConfirmForm",
  *       "disable" = "Drupal\search_api\Form\IndexDisableConfirmForm",
  *       "reindex" = "Drupal\search_api\Form\IndexReindexConfirmForm",
@@ -820,6 +821,11 @@ class Index extends ConfigEntityBase implements IndexInterface {
           if (isset($field_options[$key]['boost'])) {
             $field->setBoost($field_options[$key]['boost']);
           }
+
+          if (isset($field_options[$key]['faceted'])) {
+            $field->setFaceted($field_options[$key]['faceted']);
+          }
+
         }
         $this->fields[1]['fields'][$key] = $field;
       }

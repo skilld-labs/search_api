@@ -37,10 +37,9 @@ class IndexFacetsForm extends EntityForm {
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager.
    */
-  public function __construct(EntityManagerInterface $entity_manager, \Drupal\facet_api\Adapter\AdapterPluginManager $adapter_manager, \Drupal\facet_api\Searcher\SearcherPluginManager $searcher_manager) {
+  public function __construct(EntityManagerInterface $entity_manager, \Drupal\facetapi\Adapter\AdapterPluginManager $adapter_manager) {
     $this->entityManager = $entity_manager;
     $this->adapterManager = $adapter_manager;
-    $this->searcherManager = $searcher_manager;
   }
 
   /**
@@ -49,11 +48,9 @@ class IndexFacetsForm extends EntityForm {
   public static function create(ContainerInterface $container) {
     /** @var \Drupal\Core\Entity\EntityManagerInterface $entity_manager */
     $entity_manager = $container->get('entity.manager');
-    /** @var \Drupal\facet_api\AdapterManager $adapter_manager */
+    /** @var \Drupal\facetapi\Adapter\AdapterPluginManager $adapter_manager */
     $adapter_manager = $container->get('plugin.manager.facet_api.adapter');
-    /** @var \Drupal\facet_api\Searcher\SearcherPluginManager $searcher_manager */
-    $searcher_manager = $container->get('plugin.manager.facet_api.searcher');
-    return new static($entity_manager, $adapter_manager, $searcher_manager);
+    return new static($entity_manager, $adapter_manager);
   }
 
   /**
@@ -78,10 +75,11 @@ class IndexFacetsForm extends EntityForm {
     // Instantiates adapter, loads realm.
     $adapter = $this->adapterManager->getDefinition('search_api');
 
+
     // @todo inject realmManager to load realms. Look at the DataSourceDerivative
     $realm_name = $index->getServerId() . ':' . $index->id();
 
-    $realm = $this->searcherManager->getInstance();
+    //$realm = $this->searcherManager->getInstance();
     /*$realm = facetapi_realm_load($realm_name);
     // @todo inject facetManager to get Facet Info from Searchers
     $facet_info = facetapi_get_facet_info($searcher);

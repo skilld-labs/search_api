@@ -53,6 +53,13 @@ class Field implements \IteratorAggregate, FieldInterface {
   protected $boost;
 
   /**
+   * The state of this field towards the facet implementation.
+   *
+   * @var bool
+   */
+  protected $faceted;
+
+  /**
    * {@inheritdoc}
    */
   public function getType() {
@@ -151,6 +158,35 @@ class Field implements \IteratorAggregate, FieldInterface {
       $this->index->setOption('fields', $fields);
     }
     return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setFaceted($faceted, $notify = FALSE) {
+    $faceted = (bool) $faceted;
+    $this->faceted = $faceted;
+    if ($notify) {
+      $fields = $this->index->getOption('fields', array());
+      if (isset($fields[$this->fieldIdentifier])) {
+        $fields[$this->fieldIdentifier]['faceted'] = $faceted;
+        $this->index->setOption('fields', $fields);
+      }
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isFaceted() {
+    if (!isset($this->faceted)) {
+      $fields = $this->index->getOption('fields', array());
+      if (isset($fields[$this->fieldIdentifier])) {
+        $this->faceted = isset($fields[$this->fieldIdentifier]['boost']) ? (bool) $fields[$this->fieldIdentifier]['faceted'] : false;
+      }
+    }
+    return $this->faceted;
   }
 
   /**

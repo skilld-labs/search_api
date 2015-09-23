@@ -109,14 +109,6 @@ entity.search_api_index.fields:
   requirements:
     _entity_access: 'search_api_index.fields'
 
-entity.search_api_index.facets:
-  path: '/admin/config/search/search-api/index/{search_api_index}/facets'
-  defaults:
-    _entity_form: 'search_api_index.facets'
-  requirements:
-    _entity_access: 'search_api_index.facets'
-
-
 entity.search_api_index.processors:
   path: '/admin/config/search/search-api/index/{search_api_index}/processors'
   defaults:

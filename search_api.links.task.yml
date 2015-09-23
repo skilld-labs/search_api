@@ -25,8 +25,3 @@ entity.search_api_index.processors:
   base_route: entity.search_api_index.canonical
   title: 'Processors'
   weight: 20
-entity.search_api_index.facets:
-  route_name: entity.search_api_index.facets
-  base_route: entity.search_api_index.canonical
-  title: 'Facets'
-  weight: 20

@@ -163,35 +163,6 @@ class Field implements \IteratorAggregate, FieldInterface {
   /**
    * {@inheritdoc}
    */
-  public function setFaceted($faceted, $notify = FALSE) {
-    $faceted = (bool) $faceted;
-    $this->faceted = $faceted;
-    if ($notify) {
-      $fields = $this->index->getOption('fields', array());
-      if (isset($fields[$this->fieldIdentifier])) {
-        $fields[$this->fieldIdentifier]['faceted'] = $faceted;
-        $this->index->setOption('fields', $fields);
-      }
-    }
-    return $this;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function isFaceted() {
-    if (!isset($this->faceted)) {
-      $fields = $this->index->getOption('fields', array());
-      if (isset($fields[$this->fieldIdentifier])) {
-        $this->faceted = isset($fields[$this->fieldIdentifier]['boost']) ? (bool) $fields[$this->fieldIdentifier]['faceted'] : false;
-      }
-    }
-    return $this->faceted;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getBoost() {
     if (!isset($this->boost)) {
       $fields = $this->index->getOption('fields', array());

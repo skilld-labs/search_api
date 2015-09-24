@@ -118,27 +118,6 @@ interface FieldInterface extends GenericFieldInterface, \Traversable {
   public function getBoost();
 
   /**
-   * Sets whether this field is enabled to render facets from the results.
-   *
-   * @param bool $faceted
-   *   The facet state of this field.
-   * @param bool $notify
-   *   (optional) Whether to notify the index of the change, i.e., set the field
-   *   to faceted in its options, too.
-   *
-   * @return $this
-   */
-  public function setFaceted($faceted, $notify = FALSE);
-
-  /**
-   * Retrieves wether or not the the field is enabled to render facets.
-   *
-   * @return bool $faceted
-   *   The facet state of this field.
-   */
-  public function isFaceted();
-
-  /**
    * Sets the field's boost value.
    *
    * @param float $boost

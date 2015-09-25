@@ -210,11 +210,6 @@ class IndexFieldsForm extends EntityForm {
         $build['fields'][$key]['boost']['#states']['visible'][$css_key . '-type'][] = array('value' => $type);
       }
 
-      $build['fields'][$key]['facet'] = array(
-        '#type' => 'checkbox',
-        '#default_value' => $field->isFaceted(),
-      );
-
       $build['fields'][$key]['#disabled'] = $field->isLocked();
       $build['fields'][$key]['#access'] = !$field->isHidden();
     }

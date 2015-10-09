@@ -34,9 +34,6 @@ search_api.index.*:
               boost:
                 type: float
                 label: 'Boost'
-              faceted:
-                type: boolean
-                label: 'Faceted'
         additional fields:
           type: sequence
           label: 'Included additional fields'

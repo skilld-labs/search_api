@@ -200,6 +200,7 @@ class IndexFieldsForm extends EntityForm {
       );
       $build['fields'][$key]['boost'] = array(
         '#type' => 'select',
+        '#options' => $boosts,
         '#default_value' => sprintf('%.1f', $field->getBoost()),
         '#states' => array(
           'visible' => array(
@@ -260,7 +261,6 @@ class IndexFieldsForm extends EntityForm {
         $field->setType($fields[$field_id]['type']);
         $field->setBoost($fields[$field_id]['boost']);
         $field->setIndexed((bool) $fields[$field_id]['indexed'], TRUE);
-        $field->setFaceted((bool) $fields[$field_id]['facet'], TRUE);
       }
     }
 

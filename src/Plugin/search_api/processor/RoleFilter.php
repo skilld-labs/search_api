@@ -8,7 +8,6 @@
 namespace Drupal\search_api\Plugin\search_api\processor;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Processor\ProcessorPluginBase;
@@ -21,7 +20,7 @@ use Drupal\user\UserInterface;
  *   label = @Translation("Role filter"),
  *   description = @Translation("Filters out users based on their role."),
  *   stages = {
- *     "preprocess_index" = 0
+ *     "preprocess_index" = -50
  *   }
  * )
  */

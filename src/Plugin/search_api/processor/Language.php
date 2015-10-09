@@ -20,7 +20,7 @@ use Drupal\search_api\Property\BasicProperty;
  *   label = @Translation("Language"),
  *   description = @Translation("Adds the item language to indexed items."),
  *   stages = {
- *     "preprocess_index" = -50
+ *     "preprocess_index" = -30
  *   },
  *   locked = true,
  *   hidden = true
@@ -43,7 +43,9 @@ class Language extends ProcessorPluginBase {
       'label' => $this->t('Item language'),
       'description' => $this->t('The language code of the item'),
     );
-    $properties['search_api_language'] = BasicProperty::createFromDefinition($definition)->setLocked();
+    $properties['search_api_language'] = BasicProperty::createFromDefinition($definition)
+      ->setIndexedLocked()
+      ->setTypeLocked();
   }
 
   /**

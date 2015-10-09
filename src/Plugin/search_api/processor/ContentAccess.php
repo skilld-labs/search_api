@@ -32,8 +32,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   label = @Translation("Content access"),
  *   description = @Translation("Adds content access checks for nodes and comments."),
  *   stages = {
- *     "preprocess_index" = 0,
- *     "preprocess_query" = 0
+ *     "preprocess_index" = -30,
+ *     "preprocess_query" = -30
  *   }
  * )
  */
@@ -99,9 +99,13 @@ class ContentAccess extends ProcessorPluginBase {
     if ($datasource) {
       $entity_type = $datasource->getEntityTypeId();
       if (in_array($entity_type, array('node', 'comment'))) {
-        $properties['status'] = ProxyProperty::create($properties['status'])->setLocked();
+        $properties['status'] = ProxyProperty::create($properties['status'])
+          ->setIndexedLocked()
+          ->setTypeLocked();
         if ($entity_type == 'node') {
-          $properties['uid'] = ProxyProperty::create($properties['uid'])->setLocked();
+          $properties['uid'] = ProxyProperty::create($properties['uid'])
+            ->setIndexedLocked()
+            ->setTypeLocked();
         }
       }
       return;
@@ -112,7 +116,10 @@ class ContentAccess extends ProcessorPluginBase {
       'description' => $this->t('Data needed to apply node access.'),
       'type' => 'string',
     );
-    $properties['search_api_node_grants'] = BasicProperty::createFromDefinition($definition)->setLocked()->setHidden();
+    $properties['search_api_node_grants'] = BasicProperty::createFromDefinition($definition)
+      ->setIndexedLocked()
+      ->setTypeLocked()
+      ->setHidden();
   }
 
   /**

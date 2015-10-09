@@ -7,7 +7,7 @@
 
 namespace Drupal\search_api\Entity;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
 use Drupal\Core\Entity\EntityInterface;
@@ -16,13 +16,13 @@ use Drupal\Core\Field\TypedData\FieldItemDataDefinition;
 use Drupal\Core\TypedData\ComplexDataDefinitionInterface;
 use Drupal\Core\TypedData\DataReferenceDefinitionInterface;
 use Drupal\Core\TypedData\ListDataDefinitionInterface;
-use Drupal\search_api\Property\PropertyInterface;
-use Drupal\search_api\SearchApiException;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Item\GenericFieldInterface;
 use Drupal\search_api\Processor\ProcessorInterface;
+use Drupal\search_api\Property\PropertyInterface;
 use Drupal\search_api\Query\QueryInterface;
 use Drupal\search_api\Query\ResultSetInterface;
+use Drupal\search_api\SearchApiException;
 use Drupal\search_api\ServerInterface;
 use Drupal\search_api\Utility;
 use Drupal\views\Views;
@@ -357,7 +357,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
     if (empty($datasources[$datasource_id])) {
       $args['@datasource'] = $datasource_id;
       $args['%index'] = $this->label();
-      throw new SearchApiException(SafeMarkup::format('The datasource with ID "@datasource" could not be retrieved for index %index.', $args));
+      throw new SearchApiException(new FormattableMarkup('The datasource with ID "@datasource" could not be retrieved for index %index.', $args));
     }
     return $datasources[$datasource_id];
   }
@@ -417,7 +417,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
       if (!($this->trackerPlugin = \Drupal::service('plugin.manager.search_api.tracker')->createInstance($this->getTrackerId(), $tracker_plugin_configuration))) {
         $args['@tracker'] = $this->tracker;
         $args['%index'] = $this->label();
-        throw new SearchApiException(SafeMarkup::format('The tracker with ID "@tracker" could not be retrieved for index %index.', $args));
+        throw new SearchApiException(new FormattableMarkup('The tracker with ID "@tracker" could not be retrieved for index %index.', $args));
       }
     }
 
@@ -454,7 +454,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
       if (!$this->serverInstance) {
         $args['@server'] = $this->server;
         $args['%index'] = $this->label();
-        throw new SearchApiException(SafeMarkup::format('The server with ID "@server" could not be retrieved for index %index.', $args));
+        throw new SearchApiException(new FormattableMarkup('The server with ID "@server" could not be retrieved for index %index.', $args));
       }
     }
 
@@ -631,7 +631,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
       if ($this->unmappedFields) {
         $vars['@fields'] = array();
         foreach ($this->unmappedFields as $type => $fields) {
-          $vars['@fields'][] = implode(', ', $fields) . ' (' . SafeMarkup::format('type !type', array('!type' => $type)) . ')';
+          $vars['@fields'][] = implode(', ', $fields) . ' (' . new FormattableMarkup('type @type', array('@type' => $type)) . ')';
         }
         $vars['@fields'] = implode('; ', $vars['@fields']);
         $vars['%index'] = $this->label();
@@ -756,7 +756,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
               /** @var \Drupal\search_api\Item\AdditionalFieldInterface $additional_field */
               $additional_field = $this->fields[0]['additional fields'][$property_path];
               $additional_field->setEnabled(TRUE);
-              $additional_field->setLocked(TRUE);
+              $additional_field->setLocked();
             }
           }
         }
@@ -809,11 +809,12 @@ class Index extends ConfigEntityBase implements IndexInterface {
       // To make it possible to lock fields that are, technically, nested, use
       // the original $property for this check.
       if ($original_property instanceof PropertyInterface) {
-        $field->setLocked($original_property->isLocked());
+        $field->setIndexedLocked($original_property->isIndexedLocked());
+        $field->setTypeLocked($original_property->isTypeLocked());
         $field->setHidden($original_property->isHidden());
       }
       $this->fields[0]['fields'][$key] = $field;
-      if (isset($field_options[$key]) || $field->isLocked()) {
+      if (isset($field_options[$key]) || $field->isIndexedLocked()) {
         $field->setIndexed(TRUE);
         if (isset($field_options[$key])) {
           $field->setType($field_options[$key]['type']);
@@ -996,10 +997,10 @@ class Index extends ConfigEntityBase implements IndexInterface {
       return array();
     }
     if (!$this->status) {
-      throw new SearchApiException(SafeMarkup::format("Couldn't index values on index %index (index is disabled)", array('%index' => $this->label())));
+      throw new SearchApiException(new FormattableMarkup("Couldn't index values on index %index (index is disabled)", array('%index' => $this->label())));
     }
     if (empty($this->options['fields'])) {
-      throw new SearchApiException(SafeMarkup::format("Couldn't index values on index %index (no fields selected)", array('%index' => $this->label())));
+      throw new SearchApiException(new FormattableMarkup("Couldn't index values on index %index (no fields selected)", array('%index' => $this->label())));
     }
 
     /** @var \Drupal\search_api\Item\ItemInterface[] $items */
@@ -1049,29 +1050,6 @@ class Index extends ConfigEntityBase implements IndexInterface {
   /**
    * {@inheritdoc}
    */
-  public function startTracking() {
-    if ($this->hasValidTracker()) {
-      foreach ($this->getDatasources() as $datasource) {
-        $item_ids = $datasource->getItemIds();
-        if ($item_ids) {
-          $this->trackItemsInserted($datasource->getPluginId(), $item_ids);
-        }
-      }
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function stopTracking() {
-    if ($this->hasValidTracker()) {
-      $this->getTracker()->trackAllItemsDeleted(NULL);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function trackItemsInserted($datasource_id, array $ids) {
     $this->trackItemsInsertedOrUpdated($datasource_id, $ids, __FUNCTION__);
   }
@@ -1098,7 +1076,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
    *   "trackItemsUpdated".
    */
   protected function trackItemsInsertedOrUpdated($datasource_id, array $ids, $tracker_method) {
-    if ($this->hasValidTracker() && $this->status()) {
+    if ($this->hasValidTracker() && $this->status() && Utility::getIndexTaskManager()->isTrackingComplete($this)) {
       $item_ids = array();
       foreach ($ids as $id) {
         $item_ids[] = Utility::createCombinedId($datasource_id, $id);
@@ -1226,7 +1204,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
     $datasource_ids = array_merge(array(NULL), $this->getDatasourceIds());
     foreach ($datasource_ids as $datasource_id) {
       foreach ($this->getPropertyDefinitions($datasource_id) as $key => $property) {
-        if ($property instanceof PropertyInterface && $property->isLocked()) {
+        if ($property instanceof PropertyInterface && $property->isIndexedLocked()) {
           $settings = $property->getFieldSettings();
           if (empty($settings['type'])) {
             $mapping = Utility::getFieldTypeMapping();
@@ -1260,7 +1238,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
       }
       elseif (!$this->status() && $original->status()) {
         if ($this->hasValidTracker()) {
-          $this->stopTracking();
+          Utility::getIndexTaskManager()->stopTracking($this);
         }
         if ($original->isServerEnabled()) {
           $original->getServer()->removeIndex($this);
@@ -1269,7 +1247,7 @@ class Index extends ConfigEntityBase implements IndexInterface {
       elseif ($this->status() && !$original->status()) {
         $this->getServer()->addIndex($this);
         if ($this->hasValidTracker()) {
-          $this->startTracking();
+          Utility::getIndexTaskManager()->startTracking($this);
         }
       }
 
@@ -1323,16 +1301,11 @@ class Index extends ConfigEntityBase implements IndexInterface {
     $new_datasource_ids = $this->getDatasourceIds();
     $original_datasource_ids = $original->getDatasourceIds();
     if ($new_datasource_ids != $original_datasource_ids) {
-      $removed = array_diff($original_datasource_ids, $new_datasource_ids);
       $added = array_diff($new_datasource_ids, $original_datasource_ids);
-      foreach ($removed as $datasource_id) {
-        $this->getTracker()->trackAllItemsDeleted($datasource_id);
-      }
-      foreach ($added as $datasource_id) {
-        $datasource = $this->getDatasource($datasource_id);
-        $item_ids = $datasource->getItemIds();
-        $this->trackItemsInserted($datasource_id, $item_ids);
-      }
+      $removed = array_diff($original_datasource_ids, $new_datasource_ids);
+      $index_task_manager = Utility::getIndexTaskManager();
+      $index_task_manager->stopTracking($this, $removed);
+      $index_task_manager->startTracking($this, $added);
     }
   }
 
@@ -1348,11 +1321,12 @@ class Index extends ConfigEntityBase implements IndexInterface {
    */
   protected function reactToTrackerSwitch(IndexInterface $original) {
     if ($this->tracker != $original->getTrackerId()) {
+      $index_task_manager = Utility::getIndexTaskManager();
       if ($original->hasValidTracker()) {
-        $original->stopTracking();
+        $index_task_manager->stopTracking($this);
       }
       if ($this->hasValidTracker()) {
-        $this->startTracking();
+        $index_task_manager->startTracking($this);
       }
     }
   }
@@ -1408,7 +1382,8 @@ class Index extends ConfigEntityBase implements IndexInterface {
   public function onDependencyRemoval(array $dependencies) {
     $changed = parent::onDependencyRemoval($dependencies);
 
-    // @todo Also react sensibly when removing the dependency of a plugin.
+    // @todo Also react sensibly when removing the dependency of a plugin or an
+    //   indexed field. See #2574633 and #2541206.
     foreach ($dependencies['config'] as $entity) {
       if ($entity instanceof EntityInterface && $entity->getEntityTypeId() == 'search_api_server') {
         // Remove this index from the deleted server (thus disabling it).

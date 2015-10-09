@@ -8,7 +8,6 @@
 namespace Drupal\search_api\Plugin\search_api\processor;
 
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
@@ -532,7 +531,7 @@ class Highlight extends ProcessorPluginBase {
   protected function getEllipses() {
     // Combine the text chunks with "…" separators. The "…" needs to be
     // translated. Let translators have the … separator text as one chunk.
-    $ellipses = explode('!excerpt', $this->t('… !excerpt … !excerpt …'));
+    $ellipses = explode('@excerpt', $this->t('… @excerpt … @excerpt …'));
     return $ellipses;
   }
 

@@ -7,7 +7,7 @@
 
 namespace Drupal\search_api_db\Tests;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
@@ -17,8 +17,9 @@ use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Entity\Server;
 use Drupal\search_api\Query\ResultSetInterface;
 use Drupal\search_api\Tests\ExampleContentTrait;
+use Drupal\search_api\Utility;
+use Drupal\search_api_db\Plugin\search_api\backend\Database as BackendDatabase;
 use Drupal\system\Tests\Entity\EntityUnitTestBase;
-use SebastianBergmann\Exporter\Exception;
 
 /**
  * Tests index and search capabilities using the Database search backend.
@@ -64,6 +65,8 @@ class BackendTest extends EntityUnitTestBase {
     $this->setUpExampleStructure();
 
     $this->installConfig(array('search_api_test_db'));
+
+    Utility::getIndexTaskManager()->addItemsAll($this->getIndex());
   }
 
   /**
@@ -100,7 +103,7 @@ class BackendTest extends EntityUnitTestBase {
    * Tests the server that was installed through default configuration files.
    */
   protected function checkDefaultServer() {
-    $server = Server::load($this->serverId);
+    $server = $this->getServer();
     $this->assertTrue((bool) $server, 'The server was successfully created.');
   }
 
@@ -108,15 +111,14 @@ class BackendTest extends EntityUnitTestBase {
    * Tests that all tables and all columns have been created.
    */
   protected function checkServerTables() {
-    $server = Server::load($this->serverId);
-
-    $normalized_storage_table = $server->getBackendConfig()['index_tables'][$this->indexId];
-    $field_tables = $server->getBackendConfig()['field_tables'][$this->indexId];
+    $db_info = \Drupal::keyValue(BackendDatabase::INDEXES_KEY_VALUE_STORE_ID)->get($this->indexId);
+    $normalized_storage_table = $db_info['index_table'];
+    $field_tables = $db_info['field_tables'];
 
     $this->assertTrue(\Drupal::database()->schema()->tableExists($normalized_storage_table), 'Normalized storage table exists');
     foreach ($field_tables as $field_table) {
-      $this->assertTrue(\Drupal::database()->schema()->tableExists($field_table['table']), SafeMarkup::format('Field table %table exists', array('%table' => $field_table['table'])));
-      $this->assertTrue(\Drupal::database()->schema()->fieldExists($normalized_storage_table, $field_table['column']), SafeMarkup::format('Field column %column exists', array('%column' => $field_table['column'])));
+      $this->assertTrue(\Drupal::database()->schema()->tableExists($field_table['table']), new FormattableMarkup('Field table %table exists', array('%table' => $field_table['table'])));
+      $this->assertTrue(\Drupal::database()->schema()->fieldExists($normalized_storage_table, $field_table['column']), new FormattableMarkup('Field column %column exists', array('%column' => $field_table['column'])));
     }
   }
 
@@ -124,7 +126,7 @@ class BackendTest extends EntityUnitTestBase {
    * Tests the index that was installed through default configuration files.
    */
   protected function checkDefaultIndex() {
-    $index = Index::load($this->indexId);
+    $index = $this->getIndex();
     $this->assertTrue((bool) $index, 'The index was successfully created.');
 
     $this->assertEqual($index->getTracker()->getTotalItemsCount(), 5, 'Correct item count.');
@@ -136,7 +138,7 @@ class BackendTest extends EntityUnitTestBase {
    */
   protected function updateIndex() {
     /** @var \Drupal\search_api\IndexInterface $index */
-    $index = Index::load($this->indexId);
+    $index = $this->getIndex();
 
     // Remove a field from the index and check if the change is matched in the
     // server configuration.
@@ -147,9 +149,11 @@ class BackendTest extends EntityUnitTestBase {
     $index->getFields()[$field_id]->setIndexed(FALSE, TRUE);
     $index->save();
 
-    $server = Server::load($this->serverId);
     $index_fields = array_keys($index->getOption('fields', array()));
-    $server_fields = array_keys($server->getBackendConfig()['field_tables'][$index->id()]);
+
+    $db_info = \Drupal::keyValue(BackendDatabase::INDEXES_KEY_VALUE_STORE_ID)->get($this->indexId);
+    $server_fields = array_keys($db_info['field_tables']);
+
     sort($index_fields);
     sort($server_fields);
     $this->assertEqual($index_fields, $server_fields);
@@ -164,7 +168,7 @@ class BackendTest extends EntityUnitTestBase {
    */
   protected function enableHtmlFilter() {
     /** @var \Drupal\search_api\IndexInterface $index */
-    $index = Index::load($this->indexId);
+    $index = $this->getIndex();
 
     $index->getFields(FALSE)[$this->getFieldId('body')]->setIndexed(TRUE, TRUE);
 
@@ -183,7 +187,7 @@ class BackendTest extends EntityUnitTestBase {
    */
   protected function disableHtmlFilter() {
     /** @var \Drupal\search_api\IndexInterface $index */
-    $index = Index::load($this->indexId);
+    $index = $this->getIndex();
     $processors = $index->getOption('processors');
     unset($processors['html_filter']);
     $index->setOption('processors', $processors);
@@ -207,7 +211,7 @@ class BackendTest extends EntityUnitTestBase {
    *   A search query on the test index.
    */
   protected function buildSearch($keys = NULL, array $filters = array(), array $fields = array()) {
-    $query = Index::load($this->indexId)->query();
+    $query = $this->getIndex()->query();
     if ($keys) {
       $query->keys($keys);
       if ($fields) {
@@ -344,7 +348,7 @@ class BackendTest extends EntityUnitTestBase {
    * Edits the server to change the "Minimum word length" setting.
    */
   protected function editServer() {
-    $server = Server::load($this->serverId);
+    $server = $this->getServer();
     $backend_config = $server->getBackendConfig();
     $backend_config['min_chars'] = 4;
     $server->setBackendConfig($backend_config);
@@ -692,6 +696,30 @@ class BackendTest extends EntityUnitTestBase {
     $facets = $results->getExtraData('search_api_facets', array())['type'];
     usort($facets, array($this, 'facetCompare'));
     $this->assertEqual($facets, $expected, 'Correct facets were returned');
+
+    // Regression tests for #2469547.
+    $query = $this->buildSearch();
+    $facets = array();
+    $facets['body'] = array(
+      'field' => $this->getFieldId('body'),
+      'limit' => 0,
+      'min_count' => 1,
+      'missing' => FALSE,
+    );
+    $query->setOption('search_api_facets', $facets);
+    $query->condition($this->getFieldId('id'), 5, '<>');
+    $query->range(0, 0);
+    $results = $query->execute();
+    $expected = array(
+      array('count' => 4, 'filter' => '"test"'),
+      array('count' => 1, 'filter' => '"bar"'),
+      array('count' => 1, 'filter' => '"foobar"'),
+    );
+    // We can't guarantee the order of returned facets, since "bar" and "foobar"
+    // both occur once, so we have to do a more complex check.
+    $facets = $results->getExtraData('search_api_facets', array())['body'];
+    usort($facets, array($this, 'facetCompare'));
+    $this->assertEqual($facets, $expected, 'Correct facets were returned for a fulltext field.');
   }
 
   /**
@@ -722,7 +750,7 @@ class BackendTest extends EntityUnitTestBase {
    * Clears the test index.
    */
   protected function clearIndex() {
-    Index::load($this->indexId)->clear();
+    $this->getIndex()->clear();
   }
 
   /**
@@ -745,7 +773,7 @@ class BackendTest extends EntityUnitTestBase {
 
     // Regression test for #1916474.
     /** @var \Drupal\search_api\IndexInterface $index */
-    $index = Index::load($this->indexId);
+    $index = $this->getIndex();
     $index->resetCaches();
     $fields = $index->getFields(FALSE);
     $price_field = $fields[$this->getFieldId('prices')];
@@ -757,11 +785,13 @@ class BackendTest extends EntityUnitTestBase {
     \Drupal::entityManager()->getStorage('search_api_server')->resetCache(array($this->serverId));
     \Drupal::entityManager()->getStorage('search_api_index')->resetCache(array($this->serverId));
 
-    entity_create('entity_test', array(
-      'id' => 6,
-      'prices' => array('3.5', '3.25', '3.75', '3.5'),
-      'type' => 'item',
-    ))->save();
+    \Drupal::entityManager()
+      ->getStorage('entity_test')
+      ->create(array(
+        'id' => 6,
+        'prices' => array('3.5', '3.25', '3.75', '3.5'),
+        'type' => 'item',
+      ))->save();
 
     $this->indexItems($this->indexId);
 
@@ -780,10 +810,12 @@ class BackendTest extends EntityUnitTestBase {
     $this->assertWarnings($results);
 
     // Regression test for #2284199.
-    entity_create('entity_test', array(
-      'id' => 7,
-      'type' => 'item',
-    ))->save();
+    \Drupal::entityManager()
+      ->getStorage('entity_test')
+      ->create(array(
+        'id' => 7,
+        'type' => 'item',
+      ))->save();
 
     $count = $this->indexItems($this->indexId);
     $this->assertEqual($count, 1, 'Indexing an item with an empty value for a non string field worked.');
@@ -793,12 +825,14 @@ class BackendTest extends EntityUnitTestBase {
     $index->save();
     $this->indexItems($this->indexId);
 
-    entity_create('entity_test', array(
-      'id' => 8,
-      'name' => 'Article with long body',
-      'type' => 'article',
-      'body' => 'astringlongerthanfiftycharactersthatcantbestoredbythedbbackend',
-    ))->save();
+    \Drupal::entityManager()
+      ->getStorage('entity_test')
+      ->create(array(
+        'id' => 8,
+        'name' => 'Article with long body',
+        'type' => 'article',
+        'body' => 'astringlongerthanfiftycharactersthatcantbestoredbythedbbackend',
+      ))->save();
     $count = $this->indexItems($this->indexId);
     $this->assertEqual($count, 1, 'Indexing an item with a word longer than 50 characters worked.');
 
@@ -810,25 +844,44 @@ class BackendTest extends EntityUnitTestBase {
    * Tests whether removing the configuration again works as it should.
    */
   protected function checkModuleUninstall() {
+    $db_info = \Drupal::keyValue(BackendDatabase::INDEXES_KEY_VALUE_STORE_ID)->get($this->indexId);
+    $normalized_storage_table = $db_info['index_table'];
+    $field_tables = $db_info['field_tables'];
+
     // See whether clearing the server works.
     // Regression test for #2156151.
-    $server = Server::load($this->serverId);
-    $index = Index::load($this->indexId);
+    $server = $this->getServer();
+    $index = $this->getIndex();
     $server->deleteAllIndexItems($index);
     $query = $this->buildSearch();
     $results = $query->execute();
     $this->assertEqual($results->getResultCount(), 0, 'Clearing the server worked correctly.');
-    $table = 'search_api_db_' . $this->indexId;
-    $this->assertTrue(Database::getConnection()->schema()->tableExists($table), 'The index tables were left in place.');
+    $this->assertTrue(Database::getConnection()->schema()->tableExists($normalized_storage_table), 'The index tables were left in place.');
 
     // Remove first the index and then the server.
     $index->setServer();
     $index->save();
 
-    $server = Server::load($this->serverId);
-    $this->assertEqual($server->getBackendConfig()['field_tables'], array(), 'The index was successfully removed from the server.');
-    $this->assertFalse(Database::getConnection()->schema()->tableExists($table), 'The index tables were deleted.');
+    $db_info = \Drupal::keyValue(BackendDatabase::INDEXES_KEY_VALUE_STORE_ID)->get($this->indexId);
+    $this->assertEqual($db_info, array(), 'The index was successfully removed from the server.');
+    $this->assertFalse(Database::getConnection()->schema()->tableExists($normalized_storage_table), 'The index tables were deleted.');
+    foreach ($field_tables as $field_table) {
+      $this->assertFalse(\Drupal::database()->schema()->tableExists($field_table['table']), new FormattableMarkup('Field table %table exists', array('%table' => $field_table['table'])));
+    }
+
+    // Re-add the index to see if the associated tables are also properly
+    // removed when the server is deleted.
+
+    $index->setServer($server);
+    $index->save();
     $server->delete();
+
+    $db_info = \Drupal::keyValue(BackendDatabase::INDEXES_KEY_VALUE_STORE_ID)->get($this->indexId);
+    $this->assertEqual($db_info, array(), 'The index was successfully removed from the server.');
+    $this->assertFalse(Database::getConnection()->schema()->tableExists($normalized_storage_table), 'The index tables were deleted.');
+    foreach ($field_tables as $field_table) {
+      $this->assertFalse(\Drupal::database()->schema()->tableExists($field_table['table']), new FormattableMarkup('Field table %table exists', array('%table' => $field_table['table'])));
+    }
 
     // Uninstall the module.
     \Drupal::service('module_installer')->uninstall(array('search_api_db'), FALSE);
@@ -864,6 +917,26 @@ class BackendTest extends EntityUnitTestBase {
    */
   protected function assertWarnings(ResultSetInterface $results, array $warnings = array(), $message = 'No warnings were displayed.') {
     $this->assertEqual($results->getWarnings(), $warnings, $message);
+  }
+
+  /**
+   * Retrieves the search server used by this test.
+   *
+   * @return \Drupal\search_api\ServerInterface
+   *   The search server.
+   */
+  protected function getServer() {
+    return Server::load($this->serverId);
+  }
+
+  /**
+   * Retrieves the search index used by this test.
+   *
+   * @return \Drupal\search_api\IndexInterface
+   *   The search index.
+   */
+  protected function getIndex() {
+    return Index::load($this->indexId);
   }
 
 }

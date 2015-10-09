@@ -7,11 +7,12 @@
 
 namespace Drupal\search_api\Plugin\views\row;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\TypedData\ComplexDataInterface;
+use Drupal\search_api\Plugin\views\query\SearchApiQuery;
 use Drupal\search_api\SearchApiException;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\Plugin\views\row\RowPluginBase;
@@ -119,11 +120,10 @@ class SearchApiRow extends RowPluginBase {
     parent::init($view, $display, $options);
 
     $base_table = $view->storage->get('base_table');
-    if (substr($base_table, 0, 17) !== 'search_api_index_') {
-      throw new \InvalidArgumentException(SafeMarkup::format('View %view is not based on Search API but tries to use its row plugin.', array('%view' => $view->storage->label())));
+    $this->index = SearchApiQuery::getIndexFromTable($base_table, $this->getEntityManager());
+    if (!$this->index) {
+      throw new \InvalidArgumentException(new FormattableMarkup('View %view is not based on Search API but tries to use its row plugin.', array('%view' => $view->storage->label())));
     }
-    $index_id = substr($base_table, 17);
-    $this->index = $this->getEntityManager()->getStorage('search_api_index')->load($index_id);
   }
 
   /**
@@ -216,11 +216,7 @@ class SearchApiRow extends RowPluginBase {
       return '';
     }
 
-    // @todo Use isValidDatasource() instead.
-    try {
-      $datasource = $this->index->getDatasource($datasource_id);
-    }
-    catch (SearchApiException $e) {
+    if (!$this->index->isValidDatasource($datasource_id)) {
       $context = array(
         '%datasource' => $datasource_id,
         '%view' => $this->view->storage->label(),

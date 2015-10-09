@@ -7,10 +7,10 @@
 
 namespace Drupal\search_api\Item;
 
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\search_api\Entity\Index;
-use Drupal\search_api\SearchApiException;
 use Drupal\search_api\IndexInterface;
+use Drupal\search_api\SearchApiException;
 use Drupal\search_api\Utility;
 
 /**
@@ -94,13 +94,6 @@ trait FieldTrait {
    * @var string
    */
   protected $labelPrefix;
-
-  /**
-   * Whether this field should always be enabled/indexed.
-   *
-   * @var bool
-   */
-  protected $locked;
 
   /**
    * Whether this field should be hidden from the user.
@@ -352,33 +345,6 @@ trait FieldTrait {
   }
 
   /**
-   * Determines whether this field should always be enabled/indexed.
-   *
-   * @return bool
-   *   TRUE if this field should be locked as enabled/indexed.
-   *
-   * @see \Drupal\search_api\Item\GenericFieldInterface::isLocked()
-   */
-  public function isLocked() {
-    return (bool) $this->locked;
-  }
-
-  /**
-   * Sets whether this field should be locked.
-   *
-   * @param bool $locked
-   *   (optional) TRUE if the field should be locked, FALSE otherwise.
-   *
-   * @return $this
-   *
-   * @see \Drupal\search_api\Item\GenericFieldInterface::setLocked()
-   */
-  public function setLocked($locked = TRUE) {
-    $this->locked = $locked;
-    return $this;
-  }
-
-  /**
    * Determines whether this field should be hidden from the user.
    *
    * @return bool
@@ -422,7 +388,7 @@ trait FieldTrait {
       if (!isset($definitions[$this->propertyPath])) {
         $args['@field'] = $this->fieldIdentifier;
         $args['%index'] = $this->index->label();
-        throw new SearchApiException(SafeMarkup::format('Could not retrieve data definition for field "@field" on index %index.', $args));
+        throw new SearchApiException(new FormattableMarkup('Could not retrieve data definition for field "@field" on index %index.', $args));
       }
       $this->dataDefinition = $definitions[$this->propertyPath];
     }

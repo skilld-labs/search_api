@@ -22,8 +22,8 @@ use Symfony\Component\Yaml\Parser;
  *   label = @Translation("HTML filter"),
  *   description = @Translation("Strips HTML tags from fulltext fields and decodes HTML entities. Use this processor when indexing HTML data, e.g., node bodies for certain text formats. The processor also allows to boost (or ignore) the contents of specific elements."),
  *   stages = {
- *     "preprocess_index" = 0,
- *     "preprocess_query" = 0
+ *     "preprocess_index" = -10,
+ *     "preprocess_query" = -10
  *   }
  * )
  */
@@ -158,6 +158,15 @@ class HtmlFilter extends FieldsProcessorPluginBase {
       $text = strip_tags($text);
       $value = $this->normalizeText(trim($text));
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function process(&$value) {
+    $value = str_replace(array('<', '>'), array(' <', '> '), $value);
+    $value = strip_tags($value);
+    $value = $this->normalizeText($value);
   }
 
   /**

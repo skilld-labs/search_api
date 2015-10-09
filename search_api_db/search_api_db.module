@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * Implementation of hook_search_api_data_type_info.
+ *
+ * Adds the query types that are supported by this backend.
+ *
+ * @param $definitions
+ */
+function search_api_db_search_api_data_type_info_alter(&$data_type_definitions) {
+  // Alter the data_types here. Each data type has a list of all available
+  // and their reference to the query_type class for that specific data
+  // type. By default this points to the default search_api query_type but
+  // it allows backends to override this specification.
+  // @todo figure out how we will do this mapping
+  foreach ($data_type_definitions as $data_type_definition_id => $data_type_definition) {
+    // for example of this patch, we want a different query type for search_api_db for boolean data_types.
+    if ($data_type_definition_id == 'entity:boolean') {
+      $data_type_definitions[$data_type_definition_id]['configuration']['search_api_db']['facetapi']['query_type']['term'] = 'search_api_db_term';
+    }
+  }
+}

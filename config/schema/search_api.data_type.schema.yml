@@ -1,0 +1,13 @@
+"search_api.data_type.plugin.entity:*":
+  type: mapping
+  label: 'Data Type configuration'
+  mapping:
+    backend:
+      type: string
+      label: 'The backend that is configured.'
+    supported:
+      type: sequence
+      label: "The supported facetapi query types"
+        sequence:
+          type: string
+          label: 'A query type plugin id'
